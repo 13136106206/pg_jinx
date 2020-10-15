@@ -226,10 +226,20 @@ void javaBeginForeignScan(ForeignScanState *node, int eflags) {
     // TupleDescGetAttInMetadata(node->ss.ss_ScanTupleSlot->tts_tupleDescriptor);
     for(i=0;i<md->tupdesc->natts;i++) {
         jobject nam, ct;
+
+#if PG_VERSION_NUM >= 120000
+        FormData_pg_attribute fa = md->tupdesc->attrs[i];
+        nam = (*env)->NewStringUTF(env, NameStr(fa.attname));
+        CHECK_EXCEPTION("%s\ncreating column name","unused");
+        ct = (*env)->NewObject(env, columnClass, columnConstructor, nam, (jint)fa.atttypid, (jint)fa.atttypmod, (jboolean) fa.attnotnull);
+ 
+#else
         Form_pg_attribute fa = md->tupdesc->attrs[i];
         nam = (*env)->NewStringUTF(env, NameStr(fa->attname));
         CHECK_EXCEPTION("%s\ncreating column name","unused");
-        ct = (*env)->NewObject(env, columnClass, columnConstructor, nam, (jint)fa->atttypid, (jint)fa->atttypmod, (jboolean) fa-> attnotnull);
+	ct = (*env)->NewObject(env, columnClass, columnConstructor, nam, (jint)fa->atttypid, (jint)fa->atttypmod, (jboolean) fa->attnotnull);
+ 
+#endif
         CHECK_EXCEPTION("%s\ncreating column type","unused");
         (*env)->DeleteLocalRef(env, nam);
         (*env)->SetObjectArrayElement(env, mdx, i, ct);
@@ -297,7 +307,11 @@ void javaGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntabl
 	SIGINTInterruptCheckProcess(baserel->fdw_private);
 
 	/* Create a ForeignPath node and add it as only possible path */
+#if PG_VERSION_NUM >= 90600
+	add_path(baserel, (Path*)create_foreignscan_path(root, baserel, NIL, baserel->rows, startup_cost, total_cost, NIL, NULL, NULL, (void *)baserel->fdw_private)); 
+#else
 	add_path(baserel, (Path*)create_foreignscan_path(root, baserel, baserel->rows, startup_cost, total_cost, NIL, NULL, NULL, (void *)baserel->fdw_private)); 
+#endif
 }
 
 ForeignScan *javaGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid, ForeignPath *best_path, List *tlist, List *scan_clauses) {
@@ -319,7 +333,11 @@ static jobject colRef(PlannerInfo *root, Var *var) {
     
     if (var == NULL) return NULL;
     rte = root->simple_rte_array[var->varno];
+#if PG_VERSION_NUM >= 12000
+    attname = get_attname(rte->relid, var->varattno, true);
+#else
     attname = get_attname(rte->relid, var->varattno);
+#endif
     js = (*env)->NewStringUTF(env, attname);
     res = (*env)->NewObject(env, colrefClass, colrefConstructor, js, var->varattno);
     return res;
@@ -349,9 +367,15 @@ void javaGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid foreignta
     baserel -> fdw_private = (void *) state;
 	SIGINTInterruptCheckProcess(state);
 
+#if PG_VERSION_NUM >= 90600
+    foreach(lc, baserel->reltarget->exprs) {
+		Node *node = (Node *) lfirst(lc);
+		List *targetcolumns = pull_var_clause(node, PVC_RECURSE_AGGREGATES | PVC_RECURSE_PLACEHOLDERS);
+#else
     foreach(lc, baserel->reltargetlist) {
 		Node *node = (Node *) lfirst(lc);
 		List *targetcolumns = pull_var_clause(node, PVC_RECURSE_AGGREGATES, PVC_RECURSE_PLACEHOLDERS);
+#endif
         columns = list_union(columns, targetcolumns);
     }
     ca = columnList(columns, root);
@@ -359,7 +383,11 @@ void javaGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid foreignta
     columns = NULL;
     foreach(lc, baserel->baserestrictinfo) {
 		RestrictInfo *node = (RestrictInfo *) lfirst(lc);
+#if PG_VERSION_NUM >= 90600
 		List	   *targetcolumns = pull_var_clause((Node *) node->clause, PVC_RECURSE_AGGREGATES | PVC_RECURSE_PLACEHOLDERS);
+#else
+		List	   *targetcolumns = pull_var_clause((Node *) node->clause, PVC_RECURSE_AGGREGATES, PVC_RECURSE_PLACEHOLDERS);
+#endif
 		columns = list_union(columns, targetcolumns);
 	}
     cx = columnList(columns, root);
@@ -389,7 +417,7 @@ void javaGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid foreignta
     
     jint* rx = (*env)->GetIntArrayElements(env, res, &jb);   // number of expected rows
     baserel -> rows = rx[0];
-    baserel -> width = rx[1]; // number of bytes per row
+    //baserel -> width = rx[1]; // number of bytes per row
     (*env)->ReleaseIntArrayElements(env, res, rx, JNI_ABORT);
     }
 }

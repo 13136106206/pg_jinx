@@ -192,11 +192,18 @@ HeapTuple handleRecordD(jarray result, TupleDesc tupdesc) {
 	}
 
 	for (i = 0; i < natts; i++)  {
+#if PG_VERSION_NUM >= 12000
+      if (tupdesc->attrs[i].attisdropped) continue;
+#else
       if (tupdesc->attrs[i]->attisdropped) continue;
+#endif
       if (nulls[i]) continue;
       Oid toid = oids[i];
+#if PG_VERSION_NUM >= 12000
+      switch(tupdesc->attrs[i].atttypid) {
+#else
       switch(tupdesc->attrs[i]->atttypid) {
-    
+#endif
         case INT4OID:
           if (toid == INT4OID);
           else ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_DATA_TYPE), (errmsg("expecting INT4OID did not receive java integer"))));
@@ -233,7 +240,11 @@ HeapTuple handleRecordD(jarray result, TupleDesc tupdesc) {
           break;
           
         default:
+#if PG_VERSION_NUM >= 12000
+          if (toid != tupdesc->attrs[i].atttypid) 
+#else
           if (toid != tupdesc->attrs[i]->atttypid) 
+#endif
             ereport(ERROR, (errcode(ERRCODE_FDW_INVALID_DATA_TYPE), (errmsg("unknown conversion for java to datum"))));
       }
     }

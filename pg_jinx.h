@@ -36,6 +36,7 @@
 #include <access/tupdesc.h>
 #include <access/xact.h>
 
+#include <catalog/pg_attribute.h>
 #include <catalog/catalog.h>
 #include <catalog/pg_foreign_data_wrapper.h>
 #include <catalog/pg_foreign_server.h>
@@ -60,17 +61,22 @@
 #include <mb/pg_wchar.h>
 
 #include <nodes/nodes.h>
+#if PG_VERSION_NUM >= 120000
+#include <access/relation.h>
+#else
 #include <nodes/relation.h>
+#endif
 #include <nodes/execnodes.h>
 
 #include <optimizer/cost.h>
 #include <optimizer/clauses.h>
 #include <optimizer/subselect.h>
 
-#if (PG_VERSION_NUM >= 90200)
+#include <optimizer/optimizer.h>
 #include <optimizer/pathnode.h>
 #include <optimizer/restrictinfo.h>
 #include <optimizer/planmain.h>
+#if (PG_VERSION_NUM <= 120000)
 #include <optimizer/var.h>
 #endif
 

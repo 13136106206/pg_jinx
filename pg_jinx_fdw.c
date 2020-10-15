@@ -297,7 +297,7 @@ void javaGetForeignPaths(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntabl
 	SIGINTInterruptCheckProcess(baserel->fdw_private);
 
 	/* Create a ForeignPath node and add it as only possible path */
-	add_path(baserel, (Path*)create_foreignscan_path(root, baserel, baserel->rows, startup_cost, total_cost, NIL, NULL, (void *)baserel->fdw_private)); 
+	add_path(baserel, (Path*)create_foreignscan_path(root, baserel, baserel->rows, startup_cost, total_cost, NIL, NULL, NULL, (void *)baserel->fdw_private)); 
 }
 
 ForeignScan *javaGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid, ForeignPath *best_path, List *tlist, List *scan_clauses) {
@@ -308,8 +308,7 @@ ForeignScan *javaGetForeignPlan(PlannerInfo *root, RelOptInfo *baserel, Oid fore
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
 
 	/* Create the ForeignScan node */
-	return (make_foreignscan(tlist, scan_clauses, scan_relid, NIL, 
-	    /*serializePlanState( */ baserel->fdw_private /* ) */ )); 
+	return (make_foreignscan(tlist, scan_clauses, scan_relid, NIL, /*serializePlanState( */ baserel->fdw_private /* ) */, NIL, NIL, NULL)); 
 }
 
 static jobject colRef(PlannerInfo *root, Var *var) {
@@ -360,7 +359,7 @@ void javaGetForeignRelSize(PlannerInfo *root, RelOptInfo *baserel, Oid foreignta
     columns = NULL;
     foreach(lc, baserel->baserestrictinfo) {
 		RestrictInfo *node = (RestrictInfo *) lfirst(lc);
-		List	   *targetcolumns = pull_var_clause((Node *) node->clause, PVC_RECURSE_AGGREGATES, PVC_RECURSE_PLACEHOLDERS);
+		List	   *targetcolumns = pull_var_clause((Node *) node->clause, PVC_RECURSE_AGGREGATES | PVC_RECURSE_PLACEHOLDERS);
 		columns = list_union(columns, targetcolumns);
 	}
     cx = columnList(columns, root);

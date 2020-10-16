@@ -30,13 +30,11 @@ ifeq ($(UNAME), Darwin)
 endif
 
 ifeq ($(UNAME), Linux)
-        JAVA_HOME = /work/jdk-15/      ########################## 手动配置  ##############################
+        JAVA_HOME = /work/jdk-15/
 	CFLAGS += -fpic 
-#	CFLAGS += -DJLIB_PATH=$(JAVA_HOME)/jre/lib/amd64
 	SHLIB_LINK = -L$(JAVA_HOME)/lib/server -ljvm
 	LDFLAGS_SL = -fpic -shared
-        #pg_include_dir = $(shell ${PG_CONFIG} --includedir-server)
-	pg_include_dir = /usr/local/pgsql-12.4/include/server  ########### ### 手动配置  ################
+	pg_include_dir = /usr/local/pgsql-12.4/include/server
         pg_exe = $(shell ${PG_CONFIG} --bindir)/postgres
         JOS = linux
 endif

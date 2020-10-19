@@ -275,7 +275,11 @@ TupleTableSlot* javaIterateForeignScan(ForeignScanState *node) {
     if (java_rowarray == NULL) return slot;
 
     tuple  = handleRecordD(java_rowarray, tupdesc);
-	ExecStoreTuple(tuple, slot, InvalidBuffer, false);
+#if PG_VERSION_NUM >= 12000  //Uncertain version number
+    ExecStoreHeapTuple(tuple, slot, false);
+#else
+    ExecStoreTuple(tuple, slot, InvalidBuffer, false);
+#endif
     return slot;
 }
 

@@ -258,14 +258,21 @@ static JNIEXPORT jobject JNICALL formTuple(JNIEnv* env, jclass cls, jlong _this,
 				nulls[idx] = ' ';
 			}
 		}
-
+#if PG_VERSION_NUM >= 12000  //Uncertain version number
+		tuple = heap_form_tuple(self, values, nulls);
+#else
 		tuple = heap_formtuple(self, values, nulls);
+#endif
 		// FIXME: 
 //		result = Tuple_internalCreate(tuple, false);
 		pfree(values);
 		pfree(nulls);
 	}
+#if PG_VERSION_NUM >= 12000  //Uncertain version number
+	PG_CATCH(); { throwJavaException("heap_form_tuple"); }
+#else
 	PG_CATCH(); { throwJavaException("heap_formtuple"); }
+#endif
 	PG_END_TRY();
 	return result;
 }
